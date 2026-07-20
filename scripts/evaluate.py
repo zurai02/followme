@@ -60,7 +60,13 @@ def main() -> int:
                 logger.warning(f"No usable files in {full_name}")
                 continue
             result = ollama.evaluate(settings, full_name, blob)
-            db.save_evaluation(conn, full_name, result["idea"], result["skill"], result["description"])
+            db.save_evaluation(
+                conn, full_name, result["idea"], result["skill"], result["description"],
+                security_flag=result["security_flag"], security_reason=result["security_reason"],
+            )
+            if result["security_flag"]:
+                logger.warning(f"  ⚠ SECURITY FLAG {full_name}: {result['security_reason']} "
+                               f"— excluded from follow/star")
             logger.info(
                 f"  idea={result['idea']:.2f} skill={result['skill']:.2f} "
                 f"sum={result['idea'] + result['skill']:.2f} | {result['description']}"

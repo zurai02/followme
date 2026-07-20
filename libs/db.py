@@ -25,7 +25,9 @@ CREATE TABLE IF NOT EXISTS entries (
     starred      INTEGER NOT NULL DEFAULT 0,
     idea         REAL,
     skill        REAL,
-    description  TEXT
+    description  TEXT,
+    security_flag   INTEGER NOT NULL DEFAULT 0,
+    security_reason TEXT
 );
 CREATE INDEX IF NOT EXISTS entries_profile_idx  ON entries(profile);
 CREATE INDEX IF NOT EXISTS entries_updated_idx  ON entries(updated_at);
@@ -42,8 +44,19 @@ def connect(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    add_missing_columns(conn)
     conn.commit()
     return conn
+
+
+def add_missing_columns(conn: sqlite3.Connection) -> None:
+    """Idempotently add security columns to a pre-existing entries table
+    (CREATE TABLE IF NOT EXISTS does not alter an already-created table)."""
+    existing = {row["name"] for row in conn.execute("PRAGMA table_info(entries)")}
+    if "security_flag" not in existing:
+        conn.execute("ALTER TABLE entries ADD COLUMN security_flag INTEGER NOT NULL DEFAULT 0")
+    if "security_reason" not in existing:
+        conn.execute("ALTER TABLE entries ADD COLUMN security_reason TEXT")
 
 
 def known_repos(conn: sqlite3.Connection) -> set[str]:
@@ -84,14 +97,18 @@ def save_evaluation(
     idea: float,
     skill: float,
     description: str,
+    security_flag: bool = False,
+    security_reason: str = "",
 ) -> None:
     conn.execute(
         """
         UPDATE entries
-           SET idea = ?, skill = ?, description = ?, updated_at = ?
+           SET idea = ?, skill = ?, description = ?,
+               security_flag = ?, security_reason = ?, updated_at = ?
          WHERE repo = ?
         """,
-        (idea, skill, description, now_iso(), repo),
+        (idea, skill, description, 1 if security_flag else 0,
+         security_reason or None, now_iso(), repo),
     )
     conn.commit()
 
@@ -116,6 +133,7 @@ def unfollowed_above(
                AND updated_at >= ?
                AND idea IS NOT NULL AND skill IS NOT NULL
                AND (idea + skill) > ?
+               AND COALESCE(security_flag, 0) = 0
              GROUP BY profile
              ORDER BY (idea + skill) DESC
             """,
@@ -138,6 +156,7 @@ def unstarred_above(
                AND updated_at >= ?
                AND idea IS NOT NULL AND skill IS NOT NULL
                AND (idea + skill) > ?
+               AND COALESCE(security_flag, 0) = 0
              ORDER BY (idea + skill) DESC
             """,
             (cutoff, min_score),
@@ -162,4 +181,6 @@ def stats(conn: sqlite3.Connection) -> dict[str, Any]:
     ).fetchone()["c"]
     followed = conn.execute("SELECT COUNT(DISTINCT profile) AS c FROM entries WHERE followed = 1").fetchone()["c"]
     starred = conn.execute("SELECT COUNT(*) AS c FROM entries WHERE starred = 1").fetchone()["c"]
-    return {"total": total, "evaluated": evaluated, "followed": followed, "starred": starred}
+    flagged = conn.execute("SELECT COUNT(*) AS c FROM entries WHERE security_flag = 1").fetchone()["c"]
+    return {"total": total, "evaluated": evaluated, "followed": followed,
+            "starred": starred, "flagged": flagged}

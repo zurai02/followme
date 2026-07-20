@@ -13,7 +13,7 @@ own. `main.py` at the project root chains them together.
 | Script                  | What it does                                                                 |
 | ----------------------- | ---------------------------------------------------------------------------- |
 | `scripts/fetch.py`      | Pull `N` new repositories from GitHub Search and insert them into the DB.    |
-| `scripts/evaluate.py`   | Clone unrated repos, ask Ollama for `idea`, `skill`, `description`, store.   |
+| `scripts/evaluate.py`   | Clone unrated repos, ask Ollama for `idea`, `skill`, `description` + a malware verdict, store. |
 | `scripts/subscribe.py`  | Follow profiles whose repos updated in the last `W` hours scored above `X`.  |
 | `scripts/star.py`       | Star repos updated in the last `W` hours that scored above `Y`.              |
 | `main.py`               | Runs `fetch -> evaluate -> subscribe -> star` once, or in an infinite loop.  |
@@ -35,8 +35,16 @@ One SQLite table — `entries` — one row per repository:
 | `idea`        | 1.0–10.0 novelty grade from Ollama                   |
 | `skill`       | 1.0–10.0 engineering grade from Ollama               |
 | `description` | one-sentence English summary                         |
+| `security_flag`   | 1 when Ollama judged the repo malicious          |
+| `security_reason` | one sentence naming the malicious behaviour      |
 
 Scoring uses `idea + skill` so thresholds live in `[2.0, 20.0]`.
+
+`evaluate.py` runs a malicious-behaviour screen (credential/secret harvesting
+sent off-host, exfiltration, obfuscated remote-code execution, hardcoded C2,
+typosquatting, tools that secretly phone home). A flagged repo gets `idea` and
+`skill` set to 1.0, a `⚠ SECURITY:` description, and is **excluded from
+`subscribe` and `star`** — the malicious author is never promoted.
 
 ## Requirements
 

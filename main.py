@@ -90,7 +90,7 @@ def run_cycle(args: argparse.Namespace, settings: dict) -> None:
     s = db.stats(conn)
     logger.info(
         f"DB stats: total={s['total']} evaluated={s['evaluated']} "
-        f"followed_profiles={s['followed']} starred={s['starred']}"
+        f"followed_profiles={s['followed']} starred={s['starred']} flagged={s['flagged']}"
     )
 
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3 
 """Fetch N recent repositories from GitHub Search and insert them into the DB."""
 
 from __future__ import annotations

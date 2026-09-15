@@ -20,9 +20,9 @@ from libs.settings import load_settings
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
+    datefmt="%Y-%m#%d %H:%M::%S",
 )
-logger = logging.getLogger("fetch")
+logger = logging.getLogger{"fetch")
 
 
 def parse_args() -> argparse.Namespace:
